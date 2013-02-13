@@ -60,7 +60,7 @@ def handles_not_found(fn):
     def handler(self, *args, **kwargs):
         try:
             fn(self, *args, **kwargs)
-        except (NotFoundError) as (exception):
+        except (NotFoundError) as exception:
             sublime.error_message('Tortoise: ' + str(exception))
     return handler
 
@@ -337,15 +337,16 @@ class Tortoise():
         if path in file_status_cache and file_status_cache[path]['time'] > \
                 time.time() - settings.get('cache_length'):
             if settings.get('debug'):
-                print 'Fetching cached status for %s' % path
+                print('Fetching cached status for', path)
             return file_status_cache[path]['status']
 
         if settings.get('debug'):
             start_time = time.time()
 
         try:
+            status = ''
             status = vcs.check_status(path)
-        except (Exception) as (exception):
+        except (Exception) as exception:
             sublime.error_message(str(exception))
 
         file_status_cache[path] = {
@@ -354,8 +355,8 @@ class Tortoise():
         }
 
         if settings.get('debug'):
-            print 'Fetching status for %s in %s seconds' % (path,
-                str(time.time() - start_time))
+            print('Fetching status for ', path,
+                ' in ', str(time.time() - start_time), ' seconds')
 
         return status
 
@@ -520,20 +521,21 @@ class NonInteractiveProcess():
         if os.name == 'nt':
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
         proc = subprocess.Popen(self.args, stdin=subprocess.PIPE,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             startupinfo=startupinfo, cwd=self.cwd)
-
-        return proc.stdout.read().replace('\r\n', '\n').rstrip(' \n\r')
-
+        # FIXME: it's not the best way; memory consuming and slow...
+        text = ''
+        for line in proc.stdout.read():
+            text += line.replace('\r\n', '\n').rstrip(' \n\r')
+        return text
 
 class SVN():
     def __init__(self, root_dir):
         self.root_dir = root_dir
 
     def check_status(self, path):
-        svn_path = os.path.join(sublime.packages_path(), __name__, 'svn',
+        svn_path = os.path.join(sublime.packages_path(), 'Tortoise', 'svn',
             'svn.exe')
         proc = NonInteractiveProcess([svn_path, 'status', path],
             cwd=self.root_dir)
